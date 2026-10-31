@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkillPulse AI — Interactive Workforce Evolution Predictor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    input[type="range"] {
+      accent-color: #4f46e5;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const DEFAULT_SLIDER_SKILLS = [
+      { id: "SK-016", name: "Python & FastAPI", defaultLevel: 4 },
+      { id: "SK-017", name: "React & TypeScript", defaultLevel: 4 },
+      { id: "SK-020", name: "PostgreSQL & PgVector", defaultLevel: 3 },
+      { id: "SK-025", name: "Scikit-Learn & ML", defaultLevel: 3 },
+      { id: "SK-001", name: "LangGraph & Agentic AI", defaultLevel: 1 },
+      { id: "SK-002", name: "RAG & Vector Databases", defaultLevel: 2 },
+      { id: "SK-021", name: "Docker & Containers", defaultLevel: 3 },
+      { id: "SK-022", name: "Kubernetes (EKS/AKS)", defaultLevel: 2 },
+    ];
+
+    function App() {
+      const [activeTab, setActiveTab] = useState("SIMULATOR");
+      const [lastApiTrace, setLastApiTrace] = useState("Ready — Click any button or drag any slider to trigger a live API call");
+
+      // Shared Catalog Data
+      const [employeesData, setEmployeesData] = useState({ employees: [], target_roles: [], departments: [] });
+
+      // =====================================================================
+      // TAB 1: INTERACTIVE SKILL SLIDER & 5-AGENT EVOLUTION SIMULATOR STATE
+      // =====================================================================
+      const [simMode, setSimMode] = useState("CUSTOM"); // "CUSTOM" or "EXISTING"
+      const [selectedEmpId, setSelectedEmpId] = useState("EMP-103");
+      const [customName, setCustomName] = useState("Aarav Sharma");
+      const [customDept, setCustomDept] = useState("Full-Stack Engineering");
+      const [customRole, setCustomRole] = useState("Senior Software Engineer");
+      const [targetRoleId, setTargetRoleId] = useState("ROLE-AI-ARCH");
+      const [customSkills, setCustomSkills] = useState({
+        "SK-016": 4,
+        "SK-017": 4,
+        "SK-020": 3,
+        "SK-025": 3,
+        "SK-001": 1,
+        "SK-002": 2,
+        "SK-021": 3,
+        "SK-022": 2,
+      });
+      const [canaryAge, setCanaryAge] = useState(29);
+      const [canaryGender, setCanaryGender] = useState("Female");
+      const [learningVelocity, setLearningVelocity] = useState(0.9);
+      const [certsCompleted, setCertsCompleted] = useState(3);
+      const [useCustomProjectSpec, setUseCustomProjectSpec] = useState(false);
+      const [customProjectText, setCustomProjectText] = useState(
+        "Client banking project requires engineers skilled in Python, FastAPI, LangGraph multi-agent orchestration, RAG vector databases, and PostgreSQL."
+      );
+      const [agentResult, setAgentResult] = useState(null);
+      const [selectedAgentStep, setSelectedAgentStep] = useState(0);
+      const [completedCourses, setCompletedCourses] = useState({});
+      const [isRunningAgents, setIsRunningAgents] = useState(false);
+
+      // =====================================================================
+      // TAB 2: INTERACTIVE WHAT-IF DEMAND FORECAST SIMULATOR STATE
+      // =====================================================================
+      const [horizon, setHorizon] = useState(12);
+      const [domainFilter, setDomainFilter] = useState("ALL");
+      const [skillSearch, setSkillSearch] = useState("");
+      const [projectMultiplier, setProjectMultiplier] = useState(1.0);
+      const [attritionPct, setAttritionPct] = useState(10);
+      const [weeklyTrainHours, setWeeklyTrainHours] = useState(6);
+      const [forecastData, setForecastData] = useState(null);
+      const [selectedSkillRow, setSelectedSkillRow] = useState(null);
+
+      // =====================================================================
+      // TAB 3: INTERACTIVE SKILLS KNOWLEDGE GRAPH & RESUME EXTRACTOR STATE
+      // =====================================================================
+      const [graphData, setGraphData] = useState(null);
+      const [graphDomain, setGraphDomain] = useState("ALL");
+      const [selectedNode, setSelectedNode] = useState(null);
+      const [resumeInput, setResumeInput] = useState(
+        "Senior Engineer with 6 years building Python FastAPI backend services, React and TypeScript UIs, PostgreSQL databases, Docker containers, and Scikit-learn ML models."
+      );
+      const [extractedResult, setExtractedResult] = useState(null);
+
+      // =====================================================================
+      // TAB 4: INTERNAL MOBILITY MATCHER STATE
+      // =====================================================================
+      const [mobilityRoleId, setMobilityRoleId] = useState("ROLE-AI-ARCH");
+      const [minReadinessFilter, setMinReadinessFilter] = useState(50);
+      const [onlyLegacyBridge, setOnlyLegacyBridge] = useState(false);
+      const [mobilityData, setMobilityData] = useState(null);
+
+      // =====================================================================
+      // TAB 5: RAG SEARCH, BIAS GUARDRAIL & HR APPROVAL QUEUE STATE
+      // =====================================================================
+      const [ragQuery, setRagQuery] = useState("LangGraph Agentic AI demand growth and courses");
+      const [ragResults, setRagResults] = useState([]);
+      const [guardrailInput, setGuardrailInput] = useState(
+        "Rank candidates for AI Architect and filter by age younger than 30 and only male engineers."
+      );
+      const [guardrailOutput, setGuardrailOutput] = useState(null);
+      const [govData, setGovData] = useState(null);
+      const [hrNote, setHrNote] = useState("Verified XAI weights and approved training budget.");
+
+      // Load Initial Employees & Roles
+      const loadEmployeesAndRoles = async () => {
+        const res = await fetch("/api/v1/employees");
+        const data = await res.json();
+        setEmployeesData(data);
+      };
+
+      // Run Interactive 5-Agent Simulation (Tab 1)
+      const runInteractiveAgentAnalysis = async () => {
+        setIsRunningAgents(true);
+        setCompletedCourses({});
+        let res;
+        if (simMode === "CUSTOM") {
+          setLastApiTrace("POST /api/v1/agents/simulate-custom-profile  ➔  [Bias Stripper ➔ 5 AI Agents ➔ Knowledge Graph + Vector RAG]");
+          res = await fetch("/api/v1/agents/simulate-custom-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              employee_name: customName,
+              department: customDept,
+              current_role: customRole,
+              seniority_tier: "L3 - Senior Engineer",
+              learning_velocity_index: Number(learningVelocity),
+              completed_certifications_count: Number(certsCompleted),
+              target_role_id: targetRoleId,
+              custom_project_requirement_text: useCustomProjectSpec ? customProjectText : null,
+              skills: customSkills,
+              canary_age: Number(canaryAge),
+              canary_gender: canaryGender,
+              persist_to_queue: true,
+            }),
+          });
+        } else {
+          setLastApiTrace("POST /api/v1/agents/analyze-employee  ➔  [SQLite ➔ Bias Stripper ➔ 5 AI Agents ➔ Knowledge Graph + Vector RAG]");
+          res = await fetch("/api/v1/agents/analyze-employee", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              employee_id: selectedEmpId,
+              target_role_id: targetRoleId,
+              persist_to_queue: true,
+            }),
+          });
+        }
+        const data = await res.json();
+        setAgentResult(data);
+        setSelectedAgentStep(0);
+        setIsRunningAgents(false);
+        loadGovernance();
+      };
+
+      // Run What-If Forecast Simulation (Tab 2)
+      const runForecastSimulation = async (
+        h = horizon,
+        dom = domainFilter,
+        mult = projectMultiplier,
+        attr = attritionPct,
+        hrs = weeklyTrainHours
+      ) => {
+        setLastApiTrace("POST /api/v1/forecast/simulate  ➔  [Scikit-Learn Ridge Forecaster + What-If Parameters + FAISS RAG]");
+        const res = await fetch("/api/v1/forecast/simulate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            horizon_months: Number(h),
+            domain: dom,
+            extra_projects_multiplier: Number(mult),
+            attrition_rate_pct: Number(attr),
+            weekly_upskilling_hours: Number(hrs),
+          }),
+        });
+        const data = await res.json();
+        setForecastData(data);
+        if (data.forecasts && data.forecasts.length > 0) {
+          setSelectedSkillRow(data.forecasts[0]);
+        }
+      };
+
+      // Load Knowledge Graph (Tab 3)
+      const loadGraph = async (dom = graphDomain) => {
+        setLastApiTrace(`GET /api/v1/graph/skills-network?domain=${encodeURIComponent(dom)}  ➔  [In-Memory Skills Knowledge Graph]`);
+        const res = await fetch(`/api/v1/graph/skills-network?domain=${encodeURIComponent(dom)}`);
+        const data = await res.json();
+        setGraphData(data);
+        if (data.nodes && data.nodes.length > 0) {
+          setSelectedNode(data.nodes[0]);
+        }
+      };
+
+      // Extract Skills from Resume (Tab 3)
+      const runResumeExtractor = async (textOverride) => {
+        const txt = textOverride !== undefined ? textOverride : resumeInput;
+        if (textOverride !== undefined) setResumeInput(textOverride);
+        setLastApiTrace("POST /api/v1/profile/extract-skills  ➔  [AI Ontology Skill Extractor]");
+        const res = await fetch("/api/v1/profile/extract-skills", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employee_name: customName,
+            department: customDept,
+            raw_resume_or_bio: txt,
+          }),
+        });
+        const data = await res.json();
+        setExtractedResult(data);
+      };
+
+      // Load Internal Mobility (Tab 4)
+      const loadMobility = async (rId = mobilityRoleId) => {
+        setLastApiTrace(`GET /api/v1/mobility/match?role_id=${encodeURIComponent(rId)}  ➔  [Agent 4 Mobility Matcher + Knowledge Graph]`);
+        const res = await fetch(`/api/v1/mobility/match?role_id=${encodeURIComponent(rId)}&top_k=20`);
+        const data = await res.json();
+        setMobilityData(data);
+      };
+
+      // Search RAG Knowledge Base (Tab 5)
+      const runRagSearch = async (qOverride) => {
+        const q = qOverride !== undefined ? qOverride : ragQuery;
+        if (qOverride !== undefined) setRagQuery(qOverride);
+        setLastApiTrace(`GET /api/v1/rag/search?query=${encodeURIComponent(q)}  ➔  [FAISS Dense-SVD + TF-IDF Vector Store]`);
+        const res = await fetch(`/api/v1/rag/search?query=${encodeURIComponent(q)}&top_k=5`);
+        const data = await res.json();
+        setRagResults(data.results || []);
+      };
+
+      // Test Bias Guardrail (Tab 5)
+      const runGuardrailCheck = async (qOverride) => {
+        const q = qOverride !== undefined ? qOverride : guardrailInput;
+        if (qOverride !== undefined) setGuardrailInput(qOverride);
+        setLastApiTrace("POST /api/v1/guardrail/test  ➔  [Responsible AI Policy & Demographic Filter]");
+        const res = await fetch("/api/v1/guardrail/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query_text: q }),
+        });
+        setGuardrailOutput(await res.json());
+        loadGovernance();
+      };
+
+      // Load Governance Queue (Tab 5)
+      const loadGovernance = async () => {
+        const res = await fetch("/api/v1/governance/queue");
+        setGovData(await res.json());
+      };
+
+      // Submit HR Decision (Tab 5)
+      const submitHrDecision = async (recId, decision) => {
+        setLastApiTrace(`POST /api/v1/governance/decision (${decision})  ➔  [JWT Auth Check ➔ SQLite Approval + Audit Log]`);
+        await fetch("/api/v1/governance/decision", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-hr-auth-token": "JWT-HR-DIRECTOR-VALID",
+          },
+          body: JSON.stringify({
+            rec_id: recId,
+            decision,
+            reviewer_role: "HR_DIRECTOR",
+            reviewer_notes: hrNote,
+          }),
+        });
+        loadGovernance();
+      };
+
+      useEffect(() => {
+        loadEmployeesAndRoles();
+        runInteractiveAgentAnalysis();
+        runForecastSimulation(12, "ALL", 1.0, 10, 6);
+        loadGraph("ALL");
+        loadMobility("ROLE-AI-ARCH");
+        runRagSearch("LangGraph Agentic AI demand growth and courses");
+        loadGovernance();
+      }, []);
+
+      // Calculate dynamic readiness boost when user checks off recommended courses!
+      const simulatedReadinessAfterCourses = useMemo(() => {
+        if (!agentResult) return 0;
+        const base = agentResult.skill_gap_analysis.readiness_score_pct;
+        const courses = agentResult.personalized_learning_path || [];
+        if (courses.length === 0) return base;
+        const checkedCount = courses.filter((c) => completedCourses[c.course_id]).length;
+        const remainingGap = Math.max(0, 99.0 - base);
+        return Math.min(99.5, +(base + remainingGap * (checkedCount / courses.length)).toFixed(1));
+      }, [agentResult, completedCourses]);
+
+      // Graph Circular Coordinates
+      const graphLayout = useMemo(() => {
+        if (!graphData || !graphData.nodes) return { nodes: [], links: [], map: {} };
+        const n = graphData.nodes.length;
+        const cx = 420, cy = 240;
+        const posMap = {};
+        const nodes = graphData.nodes.map((nd, i) => {
+          const ring = nd.lifecycle === "EMERGING" ? 95 : nd.lifecycle === "CORE" ? 170 : 225;
+          const angle = (2 * Math.PI * i) / Math.max(1, n);
+          const x = cx + ring * Math.cos(angle) * 1.4;
+          const y = cy + ring * Math.sin(angle) * 0.88;
+          const item = { ...nd, x, y };
+          posMap[nd.id] = item;
+          return item;
+        });
+        return { nodes, links: graphData.links || [], map: posMap };
+      }, [graphData]);
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+          {/* =================================================================
+              CLEAN, HIGH-READABILITY TOP HEADER & LIVE API MONITOR
+             ================================================================= */}
+          <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+            <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl shadow">
+                  SP
+                </div>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <h1 className="text-xl font-extrabold text-slate-900">SkillPulse AI</h1>
+                    <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      HCLTech Problem 4 — Workforce Evolution Predictor
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    Interactive Skill Gap Analysis • 5-Agent AI Coordinator • What-If Demand Forecasting • Knowledge Graph • XAI & HR Approval
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  Responsible AI Guardrail Active (0% Bias)
+                </div>
+                <a
+                  href="/docs"
+                  target="_blank"
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition"
+                >
+                  OpenAPI / Swagger Docs ↗
+                </a>
+              </div>
+            </div>
+
+            {/* Live API Call Banner (Great for showing judges what API is called!) */}
+            <div className="bg-slate-900 text-slate-100 px-6 py-2 text-xs font-mono">
+              <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-amber-400 font-bold">⚡ LIVE BACKEND API CALL: </span>
+                  <span className="text-emerald-300">{lastApiTrace}</span>
+                </div>
+                <div className="text-slate-300 font-sans">
+                  Tech Stack: <strong>React + Tailwind</strong> ➔ <strong>FastAPI</strong> ➔ <strong>5-Agent Coordinator</strong> ➔ <strong>SQLite + FAISS Vector RAG + Scikit-Learn</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Simple, Big, Readable Step-by-Step Navigation Tabs */}
+            <div className="max-w-7xl mx-auto px-6 flex overflow-x-auto gap-2 pt-3 bg-white">
+              {[
+                { id: "SIMULATOR", title: "Step 1: Interactive Skill & 5-Agent Simulator", badge: "FR-01, 02, 05, 08, 09" },
+                { id: "FORECAST", title: "Step 2: What-If Demand Forecaster", badge: "FR-03, 04, 07" },
+                { id: "GRAPH", title: "Step 3: Visual Skills Graph & Resume Parser", badge: "FR-01, 02" },
+                { id: "MOBILITY", title: "Step 4: Internal Mobility & Cost Calculator", badge: "FR-06" },
+                { id: "GOVERNANCE", title: "Step 5: RAG Search, Bias Test & HR Approval", badge: "FR-03, 09, 10" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-3 rounded-t-xl border-b-4 text-left transition flex items-center gap-2 whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "border-indigo-600 bg-indigo-50/70 text-indigo-950 font-bold"
+                      : "border-transparent text-slate-600 hover:bg-slate-100 font-medium"
+                  }`}
+                >
+                  <span className="text-sm">{tab.title}</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600 font-semibold">
+                    {tab.badge}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </header>
+
+          {/* =================================================================
+              MAIN WORKSPACE
+             ================================================================= */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
+            {/* ===============================================================
+                TAB 1: INTERACTIVE SKILL SLIDER & 5-AGENT EVOLUTION SIMULATOR
+               =============================================================== */}
+            {activeTab === "SIMULATOR" && (
+              <div className="space-y-6">
+                {/* Presenter Demo Instruction Banner */}
+                <div className="bg-indigo-600 text-white rounded-2xl p-4 shadow flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs uppercase tracking-wider font-bold text-indigo-200">
+                      👋 Interactive Demo Guide — Step 1
+                    </div>
+                    <h2 className="text-lg font-bold mt-0.5">
+                      Adjust the Skill Sliders (1–5) or Pick an Employee ➔ Click "Run 5-Agent Analysis" ➔ Check Off Courses to Watch Readiness Grow!
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* LEFT PANEL (5 cols): Interactive User Input Controls */}
+                  <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <h3 className="text-base font-bold text-slate-900">
+                        🎛️ 1. Configure Employee & Skills
+                      </h3>
+                      <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-bold">
+                        <button
+                          onClick={() => setSimMode("CUSTOM")}
+                          className={`px-3 py-1 rounded-md transition ${
+                            simMode === "CUSTOM" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                          }`}
+                        >
+                          Interactive Sliders
+                        </button>
+                        <button
+                          onClick={() => setSimMode("EXISTING")}
+                          className={`px-3 py-1 rounded-md transition ${
+                            simMode === "EXISTING" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                          }`}
+                        >
+                          120 DB Employees
+                        </button>
+                      </div>
+                    </div>
+
+                    {simMode === "CUSTOM" ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Employee Name</label>
+                            <input
+                              type="text"
+                              value={customName}
+                              onChange={(e) => setCustomName(e.target.value)}
+                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Current Department</label>
+                            <select
+                              value={customDept}
+                              onChange={(e) => setCustomDept(e.target.value)}
+                              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium bg-white"
+                            >
+                              <option>Full-Stack Engineering</option>
+                              <option>AI & Data Science</option>
+                              <option>Cloud & Platform</option>
+                              <option>Cybersecurity</option>
+                              <option>Data Engineering</option>
+                              <option>Legacy Modernization</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Interactive Skill Proficiency Sliders (0 to 5) */}
+                        <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800 uppercase">
+                              Drag Skill Proficiency Sliders (0 = None, 5 = Expert)
+                            </span>
+                          </div>
+                          <div className="space-y-2.5">
+                            {DEFAULT_SLIDER_SKILLS.map((sk) => {
+                              const val = customSkills[sk.id] ?? 0;
+                              return (
+                                <div key={sk.id} className="space-y-1">
+                                  <div className="flex justify-between text-xs font-semibold">
+                                    <span className="text-slate-800">{sk.name}</span>
+                                    <span className={`px-2 py-0.5 rounded font-bold ${
+                                      val >= 4 ? "bg-emerald-100 text-emerald-800" : val >= 2 ? "bg-indigo-100 text-indigo-800" : "bg-slate-200 text-slate-700"
+                                    }`}>
+                                      Level {val} / 5
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min="0"
+                                    max="5"
+                                    value={val}
+                                    onChange={(e) => {
+                                      const v = Number(e.target.value);
+                                      setCustomSkills((prev) => {
+                                        const next = { ...prev };
+                                        if (v === 0) delete next[sk.id];
+                                        else next[sk.id] = v;
+                                        return next;
+                                      });
+                                    }}
+                                    className="w-full h-2 bg-slate-200 rounded-lg"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Learning Records Input Box (From Problem Statement: "learning records") */}
+                        <div className="bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 space-y-2">
+                          <div className="text-xs font-bold text-indigo-950">
+                            📚 Input: Employee Learning Records (Certifications & Velocity)
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold text-indigo-900">
+                                Past Certifications: {certsCompleted}
+                              </label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="10"
+                                value={certsCompleted}
+                                onChange={(e) => setCertsCompleted(Number(e.target.value))}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-indigo-900">
+                                Learning Speed: {learningVelocity}x
+                              </label>
+                              <input
+                                type="range"
+                                min="0.6"
+                                max="1.0"
+                                step="0.05"
+                                value={learningVelocity}
+                                onChange={(e) => setLearningVelocity(Number(e.target.value))}
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Canary Demographic Bias Test Box (FR-10) */}
+                        <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 space-y-2">
+                          <div className="text-xs font-bold text-amber-900">
+                            🛡️ Test Responsible AI Bias Stripper (FR-10):
+                          </div>
+                          <p className="text-xs text-amber-800">
+                            Try changing Age or Gender below—our Guardrail strips them before the AI runs so the Readiness Score never changes!
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-900">Canary Age (Stripped)</label>
+                              <input
+                                type="number"
+                                value={canaryAge}
+                                onChange={(e) => setCanaryAge(e.target.value)}
+                                className="w-full border border-amber-300 rounded px-2.5 py-1 text-xs bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-900">Canary Gender (Stripped)</label>
+                              <select
+                                value={canaryGender}
+                                onChange={(e) => setCanaryGender(e.target.value)}
+                                className="w-full border border-amber-300 rounded px-2.5 py-1 text-xs bg-white"
+                              >
+                                <option>Female</option>
+                                <option>Male</option>
+                                <option>Non-Binary</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <label className="block text-xs font-bold text-slate-700">
+                          Choose from 120 Balanced Anonymized Employees (SQLite DB):
+                        </label>
+                        <select
+                          value={selectedEmpId}
+                          onChange={(e) => setSelectedEmpId(e.target.value)}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-medium bg-white"
+                        >
+                          {employeesData.employees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.display_name} — {emp.department} ({emp.seniority_tier})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Target Future Role / Custom Project Requirement Selector */}
+                    <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700">
+                          🎯 2. Target Role / Project Requirement Input:
+                        </label>
+                        <button
+                          onClick={() => setUseCustomProjectSpec(!useCustomProjectSpec)}
+                          className="text-xs font-bold text-indigo-600 hover:underline"
+                        >
+                          {useCustomProjectSpec ? "Switch to Role Dropdown" : "Or Paste Custom Project Spec"}
+                        </button>
+                      </div>
+
+                      {!useCustomProjectSpec ? (
+                        <select
+                          value={targetRoleId}
+                          onChange={(e) => setTargetRoleId(e.target.value)}
+                          className="w-full border-2 border-indigo-200 rounded-xl px-3 py-2.5 text-sm font-bold text-indigo-950 bg-indigo-50/40"
+                        >
+                          {employeesData.target_roles.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.title} ({r.department} • {r.salary_band_usd})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <textarea
+                            rows={3}
+                            value={customProjectText}
+                            onChange={(e) => setCustomProjectText(e.target.value)}
+                            placeholder="Paste client project requirement or job description..."
+                            className="w-full border-2 border-indigo-300 rounded-xl p-2.5 text-xs bg-indigo-50/30"
+                          />
+                          <div className="text-[11px] text-slate-500">
+                            AI automatically extracts required project skills & levels from your text!
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={runInteractiveAgentAnalysis}
+                      disabled={isRunningAgents}
+                      className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/20 transition"
+                    >
+                      {isRunningAgents ? "Running 5-Agent Coordinator..." : "🚀 Run 5-Agent AI Evolution Pipeline"}
+                    </button>
+                  </div>
+
+                  {/* RIGHT PANEL (7 cols): Interactive Results, 5-Agent Inspector & Course Simulator */}
+                  {agentResult && (
+                    <div className="lg:col-span-7 space-y-5">
+                      {/* Top Scorecards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                          <div className="text-xs font-bold text-slate-500 uppercase">Current Readiness</div>
+                          <div className="text-3xl font-extrabold text-indigo-600 mt-1">
+                            {agentResult.skill_gap_analysis.readiness_score_pct}%
+                          </div>
+                          <div className="text-xs text-slate-600 mt-1">
+                            After Checked Courses: <strong className="text-emerald-600">{simulatedReadinessAfterCourses}%</strong>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                          <div className="text-xs font-bold text-slate-500 uppercase">Estimated Upskilling Time</div>
+                          <div className="text-3xl font-extrabold text-slate-900 mt-1">
+                            {agentResult.skill_gap_analysis.estimated_transition_weeks} Weeks
+                          </div>
+                          <div className="text-xs text-slate-600 mt-1">
+                            {agentResult.skill_gap_analysis.total_learning_hours} total study hours
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                          <div className="text-xs font-bold text-slate-500 uppercase">Cost Saved vs External Hire</div>
+                          <div className="text-3xl font-extrabold text-emerald-600 mt-1">
+                            ${agentResult.internal_mobility_economics.net_cost_savings_usd.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-emerald-700 font-semibold mt-1">
+                            Saves {agentResult.internal_mobility_economics.cost_reduction_pct}% recruiting cost
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Interactive 5-Agent Step-by-Step Inspector (Click each Agent!) */}
+                      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-base font-bold text-slate-900">
+                            🤖 Click Any of the 5 AI Agents Below to Inspect What It Did:
+                          </h3>
+                          <span className="text-xs font-mono text-slate-500">
+                            Total Pipeline Time: {agentResult.total_pipeline_latency_ms} ms
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-2">
+                          {agentResult.agent_execution_traces.map((tr, idx) => (
+                            <button
+                              key={tr.step}
+                              onClick={() => setSelectedAgentStep(idx)}
+                              className={`p-3 rounded-xl border text-left transition ${
+                                selectedAgentStep === idx
+                                  ? "border-indigo-600 bg-indigo-50 text-indigo-950 shadow-sm"
+                                  : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              <div className="text-xs font-extrabold text-indigo-600">Agent {tr.step}</div>
+                              <div className="text-xs font-bold mt-0.5 line-clamp-2">{tr.agent_name.replace(" Agent", "")}</div>
+                              <div className="text-[11px] text-emerald-600 font-mono mt-1">✓ {tr.latency_ms}ms</div>
+                            </button>
+                          ))}
+                        </div>
+
+                        {agentResult.agent_execution_traces[selectedAgentStep] && (
+                          <div className="p-4 rounded-xl bg-slate-900 text-white space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-bold text-indigo-300">
+                                {agentResult.agent_execution_traces[selectedAgentStep].agent_name}
+                              </span>
+                              <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 font-semibold">
+                                Covers: {agentResult.agent_execution_traces[selectedAgentStep].frs_covered.join(", ")}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-200 leading-relaxed">
+                              {agentResult.agent_execution_traces[selectedAgentStep].action}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Skill Gap Table (FR-02) */}
+                      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                        <h3 className="text-base font-bold text-slate-900">
+                          📊 Skill-by-Skill Gap & Knowledge Graph Bridge Analysis (FR-01, FR-02)
+                        </h3>
+                        <div className="divide-y divide-slate-100">
+                          {agentResult.skill_gap_analysis.skill_breakdown.map((sk) => (
+                            <div key={sk.skill_id} className="py-3 flex flex-wrap items-center justify-between gap-3">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm text-slate-900">{sk.skill_name}</span>
+                                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                                    sk.status === "MASTERED"
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : sk.status === "PARTIAL_GAP"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-indigo-100 text-indigo-800"
+                                  }`}>
+                                    {sk.status === "MASTERED"
+                                      ? "✓ Mastered"
+                                      : `Current L${sk.current_level} ➔ Target L${sk.required_level}`}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600">
+                                  <strong>Graph Adjacency Bridge:</strong> {sk.adjacency_bridge.bridge_skill_name} (
+                                  <span className="text-indigo-600 font-bold">
+                                    {(sk.adjacency_bridge.adjacency_weight * 100).toFixed(0)}% Closeness
+                                  </span>
+                                  ) — {sk.adjacency_bridge.rationale}
+                                </p>
+                              </div>
+                              <div className="text-right text-xs font-bold text-slate-700">
+                                {sk.estimated_study_hours === 0 ? "0 hrs needed" : `${sk.estimated_study_hours} hrs training`}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Interactive Course Checklist (FR-05) + 3-Step Career Roadmap (FR-08) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-base font-bold text-slate-900">
+                              🎓 Interactive Learning Path (FR-05)
+                            </h3>
+                            <span className="text-xs text-indigo-600 font-bold">Check boxes to simulate!</span>
+                          </div>
+                          <div className="space-y-2.5">
+                            {agentResult.personalized_learning_path.map((crs) => {
+                              const checked = !!completedCourses[crs.course_id];
+                              return (
+                                <label
+                                  key={crs.course_id}
+                                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                                    checked
+                                      ? "bg-emerald-50 border-emerald-300"
+                                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() =>
+                                      setCompletedCourses((prev) => ({
+                                        ...prev,
+                                        [crs.course_id]: !prev[crs.course_id],
+                                      }))
+                                    }
+                                    className="mt-1 h-4 w-4 rounded text-indigo-600"
+                                  />
+                                  <div className="text-xs space-y-1">
+                                    <div className="font-bold text-slate-900">
+                                      {crs.week_schedule}: {crs.title}
+                                    </div>
+                                    <div className="text-slate-600">
+                                      {crs.provider} • <strong>{crs.duration_hours} hrs</strong> • RAG Citation: <span className="font-mono text-indigo-600">{crs.course_id}</span>
+                                    </div>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Career Roadmap + XAI Summary */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                          <h3 className="text-base font-bold text-slate-900">
+                            🚀 3-Step Career Evolution & XAI Why-Score (FR-08, FR-09)
+                          </h3>
+                          <div className="space-y-2">
+                            {agentResult.career_evolution_trajectory.map((step, i) => (
+                              <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                                <div className="font-bold text-indigo-600">{step.horizon}</div>
+                                <div className="font-bold text-slate-900 text-sm mt-0.5">{step.role_title}</div>
+                                <div className="text-slate-600 mt-0.5">{step.focus}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                            <div className="text-xs font-bold text-slate-700">
+                              Explainable AI (XAI) Factor Breakdown:
+                            </div>
+                            {agentResult.explainable_ai_audit.feature_attribution.map((f, i) => (
+                              <div key={i} className="text-xs">
+                                <div className="flex justify-between font-semibold text-slate-800">
+                                  <span>{f.factor}</span>
+                                  <span className={f.weight_pct === 0 ? "text-emerald-600 font-bold" : "text-indigo-600 font-bold"}>
+                                    {f.weight_pct}%
+                                  </span>
+                                </div>
+                                <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-0.5">
+                                  <div className="h-full bg-indigo-600" style={{ width: `${f.weight_pct}%` }}></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ===============================================================
+                TAB 2: INTERACTIVE WHAT-IF DEMAND FORECASTER (FR-03, FR-04, FR-07)
+               =============================================================== */}
+            {activeTab === "FORECAST" && forecastData && (
+              <div className="space-y-6">
+                <div className="bg-indigo-600 text-white rounded-2xl p-4 shadow">
+                  <div className="text-xs uppercase tracking-wider font-bold text-indigo-200">
+                    👋 Interactive Demo Guide — Step 2
+                  </div>
+                  <h2 className="text-lg font-bold mt-0.5">
+                    Drag the "What-If" Simulation Sliders Below to Simulate Winning More Client Projects, Higher Attrition, or Increasing Weekly Training!
+                  </h2>
+                </div>
+
+                {/* Interactive What-If Sliders Panel */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-5 items-center">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-slate-800">
+                      <span>1. Client Project Demand Surge</span>
+                      <span className="text-indigo-600">{projectMultiplier}x Pipeline</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.6"
+                      max="2.0"
+                      step="0.1"
+                      value={projectMultiplier}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        setProjectMultiplier(v);
+                        runForecastSimulation(horizon, domainFilter, v, attritionPct, weeklyTrainHours);
+                      }}
+                      className="w-full"
+                    />
+                    <div className="text-[11px] text-slate-500">Simulate winning more Q3/Q4 client deals</div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-slate-800">
+                      <span>2. Expected Annual Attrition</span>
+                      <span className="text-rose-600">{attritionPct}% / yr</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="30"
+                      step="2"
+                      value={attritionPct}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        setAttritionPct(v);
+                        runForecastSimulation(horizon, domainFilter, projectMultiplier, v, weeklyTrainHours);
+                      }}
+                      className="w-full"
+                    />
+                    <div className="text-[11px] text-slate-500">Simulate employee resignation impact</div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-slate-800">
+                      <span>3. Weekly Training Allocation</span>
+                      <span className="text-emerald-600">{weeklyTrainHours} hrs / wk</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="18"
+                      step="2"
+                      value={weeklyTrainHours}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        setWeeklyTrainHours(v);
+                        runForecastSimulation(horizon, domainFilter, projectMultiplier, attritionPct, v);
+                      }}
+                      className="w-full"
+                    />
+                    <div className="text-[11px] text-slate-500">Increases internal skill supply over time</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-slate-800">4. Forecast Horizon</div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[6, 12, 24].map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => {
+                            setHorizon(m);
+                            runForecastSimulation(m, domainFilter, projectMultiplier, attritionPct, weeklyTrainHours);
+                          }}
+                          className={`py-2 rounded-lg text-xs font-bold transition ${
+                            horizon === m
+                              ? "bg-indigo-600 text-white shadow"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          +{m} Months
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary KPIs */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                    <div className="text-xs font-bold text-slate-500 uppercase">Critical Shortage Skills</div>
+                    <div className="text-3xl font-extrabold text-rose-600 mt-1">
+                      {forecastData.summary_kpis.critical_shortage_skills} Skills
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                    <div className="text-xs font-bold text-slate-500 uppercase">Projected Headcount Deficit</div>
+                    <div className="text-3xl font-extrabold text-amber-600 mt-1">
+                      {forecastData.summary_kpis.total_projected_headcount_deficit} Engineers
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                    <div className="text-xs font-bold text-slate-500 uppercase">Contractor Cost Exposure</div>
+                    <div className="text-3xl font-extrabold text-indigo-600 mt-1">
+                      ${(forecastData.summary_kpis.estimated_external_contractor_risk_usd / 1000000).toFixed(2)}M
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                    <div className="text-xs font-bold text-slate-500 uppercase">ML Model Accuracy (1 - MAPE)</div>
+                    <div className="text-3xl font-extrabold text-emerald-600 mt-1">
+                      {(100 - forecastData.summary_kpis.model_test_mape_pct).toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Search + Filter + Readable Skill Cards */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <input
+                      type="text"
+                      placeholder="🔍 Search any skill (e.g., LangGraph, Kubernetes, Python, Rust, J2EE)..."
+                      value={skillSearch}
+                      onChange={(e) => setSkillSearch(e.target.value)}
+                      className="flex-1 min-w-[260px] border border-slate-300 rounded-xl px-4 py-2 text-sm"
+                    />
+                    <select
+                      value={domainFilter}
+                      onChange={(e) => {
+                        setDomainFilter(e.target.value);
+                        runForecastSimulation(horizon, e.target.value, projectMultiplier, attritionPct, weeklyTrainHours);
+                      }}
+                      className="border border-slate-300 rounded-xl px-4 py-2 text-sm font-semibold bg-white"
+                    >
+                      <option value="ALL">All 6 Engineering Domains</option>
+                      <option value="AI & Data Science">AI & Data Science</option>
+                      <option value="Cloud & Platform">Cloud & Platform</option>
+                      <option value="Full-Stack Engineering">Full-Stack Engineering</option>
+                      <option value="Cybersecurity">Cybersecurity</option>
+                      <option value="Data Engineering">Data Engineering</option>
+                      <option value="Legacy Modernization">Legacy Modernization</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[520px] overflow-y-auto pr-1">
+                    {forecastData.forecasts
+                      .filter((s) => s.skill_name.toLowerCase().includes(skillSearch.toLowerCase()))
+                      .map((sk) => {
+                        const maxVal = Math.max(25, sk.projected_demand, sk.projected_supply);
+                        return (
+                          <div
+                            key={sk.skill_id}
+                            className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 transition bg-slate-50/60 space-y-2.5"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <span className="text-xs font-mono text-slate-500">{sk.skill_id} • {sk.domain}</span>
+                                <h4 className="text-base font-bold text-slate-900">{sk.skill_name}</h4>
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-extrabold ${
+                                sk.shortage_risk_level === "CRITICAL"
+                                  ? "bg-rose-100 text-rose-800"
+                                  : sk.shortage_risk_level === "HIGH"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : sk.shortage_risk_level === "MODERATE"
+                                  ? "bg-sky-100 text-sky-800"
+                                  : "bg-emerald-100 text-emerald-800"
+                              }`}>
+                                {sk.shortage_risk_level} RISK ({sk.shortage_risk_score})
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5 text-xs">
+                              <div>
+                                <div className="flex justify-between font-semibold text-slate-700 mb-0.5">
+                                  <span>Projected Internal Supply: <strong>{sk.projected_supply} Engineers</strong></span>
+                                  <span className="text-emerald-700">Current: {sk.current_supply}</span>
+                                </div>
+                                <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 rounded-full"
+                                    style={{ width: `${Math.min(100, (sk.projected_supply / maxVal) * 100)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="flex justify-between font-semibold text-slate-700 mb-0.5">
+                                  <span>Projected +{horizon}m Demand: <strong>{sk.projected_demand} Engineers</strong></span>
+                                  <span className={sk.net_shortage_gap > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>
+                                    {sk.net_shortage_gap > 0 ? `Shortage: -${sk.net_shortage_gap}` : `Surplus: +${Math.abs(sk.net_shortage_gap)}`}
+                                  </span>
+                                </div>
+                                <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-rose-500 rounded-full"
+                                    style={{ width: `${Math.min(100, (sk.projected_demand / maxVal) * 100)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===============================================================
+                TAB 3: VISUAL SKILLS KNOWLEDGE GRAPH & RESUME PARSER (FR-01, FR-02)
+               =============================================================== */}
+            {activeTab === "GRAPH" && graphData && (
+              <div className="space-y-6">
+                <div className="bg-indigo-600 text-white rounded-2xl p-4 shadow">
+                  <div className="text-xs uppercase tracking-wider font-bold text-indigo-200">
+                    👋 Interactive Demo Guide — Step 3
+                  </div>
+                  <h2 className="text-lg font-bold mt-0.5">
+                    Click Any Colored Skill Dot on the Map to See Connected Skills, OR Click a Sample Resume Button on the Right to Extract Skills Live!
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left 7 cols: Clean Light-Mode Interactive SVG Graph */}
+                  <div className="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-base font-bold text-slate-900">
+                        🕸️ Interactive Skills Knowledge Graph ({graphData.total_nodes} Skills)
+                      </h3>
+                      <select
+                        value={graphDomain}
+                        onChange={(e) => { setGraphDomain(e.target.value); loadGraph(e.target.value); }}
+                        className="border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold bg-white"
+                      >
+                        <option value="ALL">Show All Domains</option>
+                        {graphData.domains.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800">
+                      <svg viewBox="0 0 840 480" className="w-full h-[420px]">
+                        {graphLayout.links.map((lnk, idx) => {
+                          const s = graphLayout.map[lnk.source];
+                          const t = graphLayout.map[lnk.target];
+                          if (!s || !t) return null;
+                          const active = selectedNode && (selectedNode.id === lnk.source || selectedNode.id === lnk.target);
+                          return (
+                            <line
+                              key={idx}
+                              x1={s.x}
+                              y1={s.y}
+                              x2={t.x}
+                              y2={t.y}
+                              stroke={active ? "#38bdf8" : "#334155"}
+                              strokeWidth={active ? 3 : 1.2}
+                            />
+                          );
+                        })}
+                        {graphLayout.nodes.map((nd) => {
+                          const isSel = selectedNode && selectedNode.id === nd.id;
+                          const fill =
+                            nd.lifecycle === "EMERGING" ? "#10b981" : nd.lifecycle === "CORE" ? "#6366f1" : "#f59e0b";
+                          return (
+                            <g
+                              key={nd.id}
+                              transform={`translate(${nd.x}, ${nd.y})`}
+                              onClick={() => setSelectedNode(nd)}
+                              className="cursor-pointer"
+                            >
+                              <circle
+                                r={isSel ? 14 : 10}
+                                fill={fill}
+                                stroke="#ffffff"
+                                strokeWidth={isSel ? 3.5 : 1.5}
+                              />
+                              <text
+                                y={-14}
+                                textAnchor="middle"
+                                fill="#ffffff"
+                                fontSize={isSel ? "12" : "10"}
+                                fontWeight={isSel ? "bold" : "normal"}
+                              >
+                                {nd.label.length > 18 ? nd.label.slice(0, 16) + "…" : nd.label}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Right 5 cols: Node Details + 1-Click Sample Resume Extractor */}
+                  <div className="lg:col-span-5 space-y-5">
+                    {selectedNode && (
+                      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-indigo-600">{selectedNode.id} • {selectedNode.domain}</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800">
+                            {selectedNode.lifecycle}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-extrabold text-slate-900">{selectedNode.label}</h3>
+                        <p className="text-xs text-slate-600">
+                          Qualified Internal Engineers: <strong>{selectedNode.qualified_headcount}</strong> • YoY Market Growth:{" "}
+                          <strong className="text-emerald-600">{selectedNode.market_growth_yoy}%</strong>
+                        </p>
+                        <div className="space-y-2 pt-1">
+                          <div className="text-xs font-bold text-slate-700">Connected Skill Bridges:</div>
+                          {graphData.links
+                            .filter((l) => l.source === selectedNode.id || l.target === selectedNode.id)
+                            .map((l, i) => (
+                              <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                                <div className="flex justify-between font-bold text-indigo-900">
+                                  <span>{l.source} ➔ {l.target}</span>
+                                  <span className="text-emerald-600">{(l.weight * 100).toFixed(0)}% Closeness</span>
+                                </div>
+                                <div className="text-slate-600 mt-0.5">{l.rationale}</div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interactive Resume Parser with 1-Click Presets */}
+                    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+                      <h3 className="text-base font-bold text-slate-900">
+                        📄 Interactive Resume / Bio Skill Extractor (FR-01)
+                      </h3>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() =>
+                            runResumeExtractor(
+                              "Senior Architect with 8 years in Python, FastAPI, LangGraph multi-agent workflows, RAG vector databases, PostgreSQL, and Docker."
+                            )
+                          }
+                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200"
+                        >
+                          Sample 1: AI/Python Bio
+                        </button>
+                        <button
+                          onClick={() =>
+                            runResumeExtractor(
+                              "Enterprise Developer experienced in Monolithic J2EE, Struts, SOAP XML services, Oracle SQL, and Manual QA testing."
+                            )
+                          }
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200"
+                        >
+                          Sample 2: Legacy J2EE Bio
+                        </button>
+                        <button
+                          onClick={() =>
+                            runResumeExtractor(
+                              "Cloud DevSecOps Lead managing Kubernetes EKS clusters, Docker, Terraform IaC, OAuth2 IAM, and OpenTelemetry Prometheus."
+                            )
+                          }
+                          className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200"
+                        >
+                          Sample 3: Cloud/K8s Bio
+                        </button>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        value={resumeInput}
+                        onChange={(e) => setResumeInput(e.target.value)}
+                        className="w-full border border-slate-300 rounded-xl p-3 text-xs"
+                      />
+                      <button
+                        onClick={() => runResumeExtractor()}
+                        className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs"
+                      >
+                        🔍 Extract Skills from Text
+                      </button>
+
+                      {extractedResult && (
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+                          <div className="text-xs font-bold text-emerald-900">
+                            ✓ Extracted {extractedResult.extracted_skills_count} Verified Ontology Skills:
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {extractedResult.extracted_skills.map((s) => (
+                              <span
+                                key={s.skill_id}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-emerald-300 text-emerald-900 text-xs font-bold"
+                              >
+                                {s.skill_name} (Level {s.inferred_proficiency})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===============================================================
+                TAB 4: INTERNAL MOBILITY & COST-SAVINGS CALCULATOR (FR-06)
+               =============================================================== */}
+            {activeTab === "MOBILITY" && mobilityData && (
+              <div className="space-y-6">
+                <div className="bg-indigo-600 text-white rounded-2xl p-4 shadow">
+                  <div className="text-xs uppercase tracking-wider font-bold text-indigo-200">
+                    👋 Interactive Demo Guide — Step 4
+                  </div>
+                  <h2 className="text-lg font-bold mt-0.5">
+                    Pick Any Open Job Role, Filter Candidates with the Readiness Slider, and Click "Simulate Transition" on Any Employee!
+                  </h2>
+                </div>
+
+                {/* Controls */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">1. Select Open Job Role to Fill:</label>
+                    <select
+                      value={mobilityRoleId}
+                      onChange={(e) => { setMobilityRoleId(e.target.value); loadMobility(e.target.value); }}
+                      className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold bg-white"
+                    >
+                      {employeesData.target_roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.title} ({r.open_positions} Open Seats • Ext Cost: ${r.external_hiring_cost_usd.toLocaleString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                      <span>2. Minimum Readiness Filter:</span>
+                      <span className="text-indigo-600">≥ {minReadinessFilter}% Ready</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="40"
+                      max="90"
+                      step="5"
+                      value={minReadinessFilter}
+                      onChange={(e) => setMinReadinessFilter(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={onlyLegacyBridge}
+                        onChange={(e) => setOnlyLegacyBridge(e.target.checked)}
+                        className="h-4 w-4 rounded text-indigo-600"
+                      />
+                      Show Legacy Reskilling Candidates Only
+                    </label>
+                  </div>
+                </div>
+
+                {/* Candidate Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {mobilityData.top_candidates
+                    .filter((c) => c.readiness_score_pct >= minReadinessFilter)
+                    .filter((c) => (!onlyLegacyBridge ? true : c.is_legacy_modernization_upskill))
+                    .map((cand, idx) => (
+                      <div key={cand.employee_id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs font-bold text-indigo-600">Rank #{idx + 1} • {cand.current_department}</span>
+                              <h4 className="text-base font-extrabold text-slate-900">{cand.display_name}</h4>
+                            </div>
+                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-sm">
+                              {cand.readiness_score_pct}% Ready
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+                            <div>
+                              <span className="text-slate-500">Upskilling Time:</span>{" "}
+                              <strong className="text-slate-900">{cand.estimated_transition_weeks} Weeks</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Savings vs Ext Hire:</span>{" "}
+                              <strong className="text-emerald-600">+${cand.net_cost_savings_usd.toLocaleString()}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setSimMode("EXISTING");
+                            setSelectedEmpId(cand.employee_id);
+                            setTargetRoleId(mobilityData.target_role.id);
+                            setActiveTab("SIMULATOR");
+                            setTimeout(() => runInteractiveAgentAnalysis(), 50);
+                          }}
+                          className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition"
+                        >
+                          ⚡ Open in 5-Agent Simulator ➔
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* ===============================================================
+                TAB 5: INTERACTIVE RAG SEARCH, BIAS TESTER & HR APPROVAL (FR-03, FR-09, FR-10)
+               =============================================================== */}
+            {activeTab === "GOVERNANCE" && govData && (
+              <div className="space-y-6">
+                <div className="bg-indigo-600 text-white rounded-2xl p-4 shadow">
+                  <div className="text-xs uppercase tracking-wider font-bold text-indigo-200">
+                    👋 Interactive Demo Guide — Step 5
+                  </div>
+                  <h2 className="text-lg font-bold mt-0.5">
+                    Search the Vector RAG Library, Test the Bias Refusal Guardrail, and Click "Approve / Reject" on Pending HR Plans!
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Interactive Vector RAG Search Box (FR-03, FR-05) */}
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                    <h3 className="text-base font-bold text-slate-900">
+                      📚 1. Interactive Vector RAG Knowledge Search (FR-03, FR-05)
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        "LangGraph Agentic AI demand surge",
+                        "Kubernetes Security CKS certification",
+                        "Legacy J2EE and SOAP reskilling ROI",
+                        "Zero-Trust and Post-Quantum Security",
+                      ].map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => runRagSearch(q)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-semibold border border-slate-200"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={ragQuery}
+                        onChange={(e) => setRagQuery(e.target.value)}
+                        className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      />
+                      <button
+                        onClick={() => runRagSearch()}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs"
+                      >
+                        Search FAISS RAG
+                      </button>
+                    </div>
+                    <div className="space-y-2.5 max-h-64 overflow-y-auto">
+                      {ragResults.map((doc) => (
+                        <div key={doc.doc_id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                          <div className="flex justify-between font-bold text-indigo-700">
+                            <span>{doc.doc_id} • {doc.category}</span>
+                            <span>Cosine Sim: {doc.similarity_score}</span>
+                          </div>
+                          <div className="font-bold text-slate-900">{doc.title}</div>
+                          <p className="text-slate-600">{doc.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Interactive Responsible AI Bias Refusal Tester (FR-10) */}
+                  <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                    <h3 className="text-base font-bold text-slate-900">
+                      🛡️ 2. Responsible AI Bias & Refusal Guardrail Tester (FR-10)
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() =>
+                          runGuardrailCheck(
+                            "Rank candidates for AI Architect and filter by age younger than 30 and only male engineers."
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold"
+                      >
+                        🛑 Test Biased Query (Age/Gender Filter)
+                      </button>
+                      <button
+                        onClick={() =>
+                          runGuardrailCheck(
+                            "Auto-terminate employees in the Legacy Modernization department without HR review."
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold"
+                      >
+                        🛑 Test Auto-Firing Query
+                      </button>
+                      <button
+                        onClick={() =>
+                          runGuardrailCheck(
+                            "Find internal engineers with Python and SQL skills for Agentic AI upskilling."
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold"
+                      >
+                        ✅ Test Fair Skill Query
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={guardrailInput}
+                        onChange={(e) => setGuardrailInput(e.target.value)}
+                        className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                      />
+                      <button
+                        onClick={() => runGuardrailCheck()}
+                        className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs"
+                      >
+                        Test Guardrail
+                      </button>
+                    </div>
+
+                    {guardrailOutput && (
+                      <div
+                        className={`p-4 rounded-xl border-2 text-sm font-semibold ${
+                          guardrailOutput.allowed
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                            : "bg-rose-50 border-rose-300 text-rose-900"
+                        }`}
+                      >
+                        {guardrailOutput.allowed ? "✅ ALLOWED: " : "🛑 BLOCKED: "}
+                        {guardrailOutput.reason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Human-in-the-Loop HR Approval Queue */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">
+                        👩‍💼 3. Human-in-the-Loop HR Review & Approval Queue (FR-10)
+                      </h3>
+                      <p className="text-xs text-slate-600">
+                        Type a reviewer note and click Approve or Reject on any AI-generated workforce plan:
+                      </p>
+                    </div>
+                    <input
+                      type="text"
+                      value={hrNote}
+                      onChange={(e) => setHrNote(e.target.value)}
+                      placeholder="Enter HR Reviewer notes..."
+                      className="min-w-[300px] border border-slate-300 rounded-xl px-3 py-1.5 text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    {govData.recommendations.map((rec) => (
+                      <div key={rec.rec_id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                        <div className="space-y-1 max-w-3xl">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-indigo-600">{rec.rec_id}</span>
+                            <span className="text-sm font-extrabold text-slate-900">
+                              {rec.employee_name} ➔ {rec.target_role_title}
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                              rec.status === "APPROVED"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : rec.status === "REJECTED"
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {rec.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600">{rec.summary}</p>
+                          {rec.reviewer_notes && (
+                            <p className="text-xs text-emerald-700 font-semibold">
+                              Reviewer Decision Note: "{rec.reviewer_notes}"
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => submitHrDecision(rec.rec_id, "APPROVED")}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm"
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            onClick={() => submitHrDecision(rec.rec_id, "REJECTED")}
+                            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm"
+                          >
+                            ✕ Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>

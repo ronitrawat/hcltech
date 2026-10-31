@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  skillpulse-ai:
+    build: .
+    container_name: skillpulse-ai-platform
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET_KEY=JWT-HR-DIRECTOR-VALID
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    restart: unless-stopped

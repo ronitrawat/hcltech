@@ -1,0 +1,15 @@
+{
+  "name": "skillpulse-ai-frontend",
+  "version": "3.2.0",
+  "private": true,
+  "description": "React 18 + TypeScript + Tailwind CSS + Zustand Workforce Intelligence Portal",
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "tailwindcss": "^3.4.4"
+  }
+}
